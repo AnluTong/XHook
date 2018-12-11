@@ -11,7 +11,7 @@ import me.andrew.xhook.CallbackParam;
 import me.andrew.xhook.HookCallback;
 import me.andrew.xhook.HookManager;
 
-public class MainActivity extends AppCompatActivity {
+public final class MainActivity extends AppCompatActivity {
 
     public static Context mApp;
     private String mText = "aa";
@@ -26,19 +26,10 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                try {
-//                    Method srcMethod = MainActivity.class.getDeclaredMethod("showToast", String.class);
-//                    Method backup = HookClass.class.getDeclaredMethod("showToast_backup", Object.class, String.class);
-//                    Method hook = HookClass.class.getDeclaredMethod("showToast", Object.class, String.class);
-//                    MethodHook.hook_native(srcMethod, hook, backup);
-//                } catch (NoSuchMethodException e) {
-//                    e.printStackTrace();
-//                }
                 HookManager.addHookMethod(MainActivity.class, "showToast", String.class, new HookCallback() {
                     @Override
                     protected void beforeHookedMethod(CallbackParam param) throws Throwable {
                         super.beforeHookedMethod(param);
-//                        mText = "sdfsdfs";
                     }
 
                     @Override
@@ -74,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    public void showToast(String msg) {
+    private final void showToast(String msg) {
         Toast toast = Toast.makeText(this, msg, Toast.LENGTH_SHORT);
         toast.show();
     }

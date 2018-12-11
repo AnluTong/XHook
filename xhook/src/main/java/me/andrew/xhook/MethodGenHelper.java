@@ -26,7 +26,6 @@ import java.util.Map;
 
 class MethodGenHelper {
 
-    public static final String DEFAULT_GEN_FIELD_NAME = "flag";
     public static final String INVOKER_METHOD = "_Invoker";
     public static final String INVOKER_CONSTRUCT = "init_Invoker";
 
@@ -104,16 +103,18 @@ class MethodGenHelper {
             int mode = Modifier.isPrivate(origin.getModifiers()) ? Modifier.PRIVATE : Modifier.PUBLIC;
             code = dexMaker.declare(proxy, mode);
         }
+        //argument declare
         Local<Object[]> args = code.newLocal(TypeId.get(Object[].class));
         Local<Integer> a = code.newLocal(TypeId.INT);
         Local i_ = code.newLocal(TypeId.INT);
         Local arg_ = code.newLocal(TypeId.OBJECT);
-
         Local localResult = code.newLocal(TypeId.OBJECT);
         Local caller = code.newLocal(TypeId.STRING);
         Local res = code.newLocal(TypeId.get(origin.getReturnType()));
         Local cast = origin.getReturnType().equals(void.class) ? null : code.newLocal(getType(origin.getReturnType()));
         Local<?> thisRef;
+
+        //argument set value
         if (Modifier.isStatic(origin.getModifiers())) {
             thisRef = code.newLocal(declaringType);
             code.loadConstant(thisRef, null);
@@ -223,17 +224,6 @@ class MethodGenHelper {
         Local<?> thisRef = code.getThis(declaringType);
         code.invokeDirect(TypeId.OBJECT.getConstructor(), null, thisRef);
         code.returnVoid();
-    }
-
-    /**
-     * gen default field, used for dex parser, field name is flag
-     *
-     * @param dexMaker
-     * @param declaringType
-     */
-    public static void addDefaultInstanceField(DexMaker dexMaker, TypeId<?> declaringType) {
-        FieldId fieldId = declaringType.getField(TypeId.INT, DEFAULT_GEN_FIELD_NAME);
-        dexMaker.declare(fieldId, Modifier.PUBLIC, null);
     }
 
     private static TypeId getType(Class<?> clazz) {

@@ -99,7 +99,6 @@ public class HookManager {
                     } else {
                         dexMaker.declare(hookClassType, "", Modifier.PUBLIC, TypeId.get(target));
                     }
-                    MethodGenHelper.addDefaultInstanceField(dexMaker, hookClassType);
                     MethodGenHelper.addDefaultConstructor(dexMaker, hookClassType);
                     classes.put(oldClassName, hookClassType);
                 }
@@ -132,9 +131,6 @@ public class HookManager {
                 con.newInstance(); //dex has gen default constructor
                 Member mem;
                 Method invoker;
-                if (!XHook.makeClassSuper(cls)) {
-                    continue;
-                }
                 if (m instanceof Method) {
                     mem = cls.getDeclaredMethod(m.getName(), ((Method) m).getParameterTypes());
                     invoker = cls.getDeclaredMethod(m.getName() + MethodGenHelper.INVOKER_METHOD, ((Method) m).getParameterTypes());

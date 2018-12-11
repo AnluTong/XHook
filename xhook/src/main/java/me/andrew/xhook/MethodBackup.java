@@ -9,6 +9,12 @@ import java.lang.reflect.Method;
  */
 
 class MethodBackup {
+
+    private Method invoker;
+    private Member newMethod;
+    private Member oldMethod;
+    private Object callback;
+
     public Method getInvoker() {
         return invoker;
     }
@@ -16,10 +22,6 @@ class MethodBackup {
     public void setInvoker(Method invoker) {
         this.invoker = invoker;
     }
-
-    private Method invoker;
-
-    private Member oldMethod;
 
     public Member getNewMethod() {
         return newMethod;
@@ -29,25 +31,13 @@ class MethodBackup {
         this.newMethod = newMethod;
     }
 
-    private Member newMethod;
-
-    public void setBackAddr(long backAddr) {
-        this.backAddr = backAddr;
-    }
-
     public void setOldMethod(Member oldMethod) {
         this.oldMethod = oldMethod;
-    }
-
-    public long getBackAddr() {
-        return backAddr;
     }
 
     public Member getOldMethod() {
         return oldMethod;
     }
-
-    private long backAddr;
 
     public Object getCallback() {
         return callback;
@@ -56,8 +46,5 @@ class MethodBackup {
     public void setCallback(Object callback) {
         this.callback = callback;
     }
-
-    private Object callback;
-
 
 }
