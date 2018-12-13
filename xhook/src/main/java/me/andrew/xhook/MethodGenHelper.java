@@ -5,17 +5,14 @@ import android.text.TextUtils;
 import com.android.dx.Code;
 import com.android.dx.Comparison;
 import com.android.dx.DexMaker;
-import com.android.dx.FieldId;
 import com.android.dx.Label;
 import com.android.dx.Local;
 import com.android.dx.MethodId;
 import com.android.dx.TypeId;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Type;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
@@ -24,19 +21,19 @@ import java.util.Map;
 /**
  * created by andrew.tong
  * on 18-12-11.
- *
+ * <p>
  * used for gen code like this
- *
+ * <p>
  * public class me_andrew_testhook_MainActivity {
- *     private byte showToast(String str, int i) {
- *         Object invokeCallback = HookManager.invokeCallback("ea1e4cc68ce5162464e69e99fb66985", this, new Object[]{str, Integer.valueOf(i)});
- *         return invokeCallback == null ? (byte) 0 : ((Byte) invokeCallback).byteValue();
- *     }
- *
- *
- *     private byte showToast_Invoker(String str, int i) {
- *         return (byte) 0;
- *     }
+ * private byte showToast(String str, int i) {
+ * Object invokeCallback = HookManager.invokeCallback("ea1e4cc68ce5162464e69e99fb66985", this, new Object[]{str, Integer.valueOf(i)});
+ * return invokeCallback == null ? (byte) 0 : ((Byte) invokeCallback).byteValue();
+ * }
+ * <p>
+ * <p>
+ * private byte showToast_Invoker(String str, int i) {
+ * return (byte) 0;
+ * }
  * }
  */
 
@@ -250,7 +247,7 @@ class MethodGenHelper {
 
     /**
      * primitive type return value of
-     *
+     * <p>
      * say return method Integer.valueOf(int) return Integer
      *
      * @param primitive
@@ -267,7 +264,7 @@ class MethodGenHelper {
 
     /**
      * primitive type return xxxValue
-     *
+     * <p>
      * say return method Integer.intValue() return int
      *
      * @param primitive

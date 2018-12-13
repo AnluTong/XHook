@@ -2,7 +2,6 @@ package me.andrew.xhook;
 
 import android.app.Application;
 import android.content.Context;
-import android.support.annotation.Size;
 import android.util.Log;
 
 import com.android.dx.DexMaker;
@@ -59,7 +58,7 @@ public class HookManager {
         mNeedHooks.clear();
     }
 
-    public static void addHookMethod(Class<?> clazz, String methodName, @Size(min = 1) Object... params) {
+    public static void addHookMethod(Class<?> clazz, String methodName, Object... params) {
         try {
             if (params.length == 0 || !(params[params.length - 1] instanceof HookCallback)) return;
             HookCallback callback = (HookCallback) params[params.length - 1];
@@ -159,7 +158,7 @@ public class HookManager {
         }
     }
 
-    private static Class<?>[] getParameterClasses(ClassLoader classLoader, @Size(min = 1) Object[] params) {
+    private static Class<?>[] getParameterClasses(ClassLoader classLoader, Object[] params) {
         Class[] parameterClasses = new Class[params.length - 1];
         for (int i = params.length - 1; i >= 0; i--) {
             Object type = params[i];

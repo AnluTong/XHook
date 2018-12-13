@@ -1,1 +1,1 @@
-include ':app', 'xhook', 'dexmaker'
+include ':app', 'xhook'
