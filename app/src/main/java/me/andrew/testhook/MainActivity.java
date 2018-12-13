@@ -26,7 +26,7 @@ public final class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                HookManager.addHookMethod(MainActivity.class, "showToast", String.class, new HookCallback() {
+                HookManager.addHookMethod(MainActivity.class, "showToast", String.class, int.class, new HookCallback() {
                     @Override
                     protected void beforeHookedMethod(CallbackParam param) throws Throwable {
                         super.beforeHookedMethod(param);
@@ -53,7 +53,7 @@ public final class MainActivity extends AppCompatActivity {
         findViewById(R.id.hello).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showToast(mText);
+                showToast(mText, 1);
             }
         });
 
@@ -65,8 +65,9 @@ public final class MainActivity extends AppCompatActivity {
         });
     }
 
-    private final void showToast(String msg) {
+    private final byte showToast(String msg, int a) {
         Toast toast = Toast.makeText(this, msg, Toast.LENGTH_SHORT);
         toast.show();
+        return 1;
     }
 }
