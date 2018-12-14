@@ -11,7 +11,7 @@ android {
 
         ndk {
             moduleName "xhook"
-            abiFilters "armeabi", "armeabi-v7a", "x86"
+            abiFilters "armeabi-v7a", "x86"
         }
     }
 

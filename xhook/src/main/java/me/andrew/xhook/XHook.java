@@ -8,15 +8,15 @@ import java.lang.reflect.Method;
  * on 18-12-11.
  */
 
-public class XHook extends Object {
+class XHook extends Object {
 
     static {
         System.loadLibrary("xhook");
     }
 
-    public static void hookMethod(MethodBackup old) {
+    public static void hookMethod(Backup old) {
         try {
-            replaceNativeArt(old.getOldMethod(), old.getNewMethod(), old.getInvoker());
+            replaceNativeArt(old.oldMethod, old.newMethod, old.invoker);
         } catch (Exception e) {
             e.printStackTrace();
         }

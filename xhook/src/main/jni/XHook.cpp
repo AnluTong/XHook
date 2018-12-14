@@ -19,9 +19,9 @@ replaceNativeArt(JNIEnv *env, jclass clazz, jobject origin_, jobject hook_, jobj
     ArtField *origin = (ArtField *) env->FromReflectedMethod(origin_);
     ArtField *hook = (ArtField *) env->FromReflectedMethod(hook_);
     ArtField *invoker = (ArtField *) env->FromReflectedMethod(invoker_);
-    origin->access_flags_ = origin->access_flags_ | 0x0002;
-    hook->access_flags_ = hook->access_flags_ | 0x0002;
-    invoker->access_flags_ = invoker->access_flags_  | 0x0002;
+    origin->access_flags_ = origin->access_flags_ | 0x0003;
+    hook->access_flags_ = hook->access_flags_ | 0x0003;
+    invoker->access_flags_ = invoker->access_flags_  | 0x0003;
     memcpy(invoker, origin, methodSize);
     memcpy(origin, hook, methodSize);
 }

@@ -6,13 +6,6 @@ package me.andrew.xhook;
  */
 
 public abstract class HookCallback {
-	public HookCallback() {
-	}
-
-	protected void beforeHookedMethod(CallbackParam param) throws Throwable {}
-	protected void afterHookedMethod(CallbackParam param) throws Throwable {}
-
-	protected boolean callOrigin() {
-		return true;
-	}
+    protected void beforeHookedMethod(Param param) throws Throwable { }
+    protected void afterHookedMethod(Param param) throws Throwable { }
 }

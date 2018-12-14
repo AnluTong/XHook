@@ -2,6 +2,7 @@ package me.andrew.xhook;
 
 import android.app.Application;
 import android.content.Context;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.dx.DexMaker;
@@ -28,8 +29,8 @@ public class HookManager {
     private static final String TAG = HookManager.class.getSimpleName();
 
 
-    private volatile static HashMap<String, MethodBackup> mHooked = new HashMap<>();
-    private volatile static List<MethodBackup> mNeedHooks = new ArrayList<>();
+    private volatile static HashMap<String, Backup> mHooked = new HashMap<>();
+    private volatile static List<Backup> mNeedHooks = new ArrayList<>();
     private static Context mContext;
     private static MethodId mHookCallback;
 
@@ -58,30 +59,39 @@ public class HookManager {
         mNeedHooks.clear();
     }
 
-    public static void addHookMethod(Class<?> clazz, String methodName, Object... params) {
+    public static void addHookMethod(Class<?> clazz, String methodName, Object[] params, HookCallback callback) {
         try {
-            if (params.length == 0 || !(params[params.length - 1] instanceof HookCallback)) return;
-            HookCallback callback = (HookCallback) params[params.length - 1];
-            Method m = clazz.getDeclaredMethod(methodName, getParameterClasses(clazz.getClassLoader(), params));
-            MethodBackup back = new MethodBackup();
-            back.setOldMethod(m);
-            back.setCallback(callback);
-            mNeedHooks.add(back);
+            if (callback == null || clazz == null || TextUtils.isEmpty(methodName)) return;
+            if (params == null) params = new Object[0];
+            Method m = clazz.getDeclaredMethod(methodName, transformParameterClasses(clazz.getClassLoader(), params));
+            mNeedHooks.add(new Backup().oldMethod(m).callback(callback));
         } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    private static void startArtHook(List<MethodBackup> methods) {
+    public static void addHookConstructor(Class<?> clazz, Object[] params, HookCallback callback) {
+        try {
+            if (callback == null || clazz == null) return;
+            if (params == null) params = new Object[0];
+            Constructor m = clazz.getDeclaredConstructor(transformParameterClasses(clazz.getClassLoader(), params));
+            mNeedHooks.add(new Backup().oldMethod(m).callback(callback));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void startArtHook(List<Backup> methods) {
         try {
             Context context = getContext();
             if (context == null) return;
 
-            Iterator<MethodBackup> it = methods.iterator();
+            Iterator<Backup> it = methods.iterator();
             Map<String, TypeId> classes = new HashMap<>();
             DexMaker dexMaker = new DexMaker();
             while (it.hasNext()) {
-                MethodBackup m = it.next();
-                Member old = m.getOldMethod();
+                Backup m = it.next();
+                Member old = m.oldMethod;
                 if (old == null || isHooked(old)) {
                     it.remove();
                     continue;
@@ -106,8 +116,8 @@ public class HookManager {
                     MethodGenHelper.generateMethodFromMethod(dexMaker, hookClassType, (Method) old, mHookCallback);
                     MethodGenHelper.generateInvokerFromMethod(dexMaker, hookClassType, (Method) old);
                 } else {
-                    MethodGenHelper.generateMethodFromConstructor(dexMaker, hookClassType, (Constructor) m.getOldMethod(), mHookCallback);
-                    MethodGenHelper.generateInvokerFromConstructor(dexMaker, hookClassType, (Constructor) m.getOldMethod());
+                    MethodGenHelper.generateMethodFromConstructor(dexMaker, hookClassType, (Constructor) m.oldMethod, mHookCallback);
+                    MethodGenHelper.generateInvokerFromConstructor(dexMaker, hookClassType, (Constructor) m.oldMethod);
                 }
             }
 
@@ -122,8 +132,8 @@ public class HookManager {
 
             //hook and set callback
             ClassLoader loader = dexMaker.generateAndLoad(context.getClassLoader(), outputDir);
-            for (MethodBackup bak : methods) {
-                Member m = bak.getOldMethod();
+            for (Backup bak : methods) {
+                Member m = bak.oldMethod;
                 String name = m.getDeclaringClass().getName().replace(".", "_");
                 Class<?> cls = loader.loadClass(name);
                 Constructor con = cls.getDeclaredConstructor();
@@ -140,9 +150,7 @@ public class HookManager {
                 if (mem == null || invoker == null) {
                     continue;
                 }
-                bak.setInvoker(invoker);
-                bak.setNewMethod(mem);
-                XHook.hookMethod(bak);
+                XHook.hookMethod(bak.invoker(invoker).newMethod(mem));
                 mHooked.put(MethodGenHelper.getUID(m.toString()), bak);
             }
         } catch (Exception e) {
@@ -158,18 +166,15 @@ public class HookManager {
         }
     }
 
-    private static Class<?>[] getParameterClasses(ClassLoader classLoader, Object[] params) {
-        Class[] parameterClasses = new Class[params.length - 1];
-        for (int i = params.length - 1; i >= 0; i--) {
+    private static Class<?>[] transformParameterClasses(ClassLoader classLoader, Object[] params) {
+        Class[] result = new Class[params.length];
+        for (int i = 0; i < params.length; ++i) {
             Object type = params[i];
-
-            if (type instanceof HookCallback) {
-                continue; // ignore trailing callback
-            } else if (type instanceof Class) {
-                parameterClasses[i] = (Class<?>) type;
+            if (type instanceof Class) {
+                result[i] = (Class<?>) type;
             } else if (type instanceof String) {
                 try {
-                    parameterClasses[i] = classLoader.loadClass((String) type); //((String) type, classLoader);
+                    result[i] = classLoader.loadClass((String) type); //((String) type, classLoader);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -177,7 +182,7 @@ public class HookManager {
                 throw new NullPointerException("parameter type must either be specified as Class or String");
             }
         }
-        return parameterClasses;
+        return result;
     }
 
     /**
@@ -191,13 +196,13 @@ public class HookManager {
     public static Object invokeCallback(String caller, Object thiz, Object[] args) {
         Log.d(TAG, "hook method invoke!");
 
-        MethodBackup back = mHooked.get(caller);
-        HookCallback callback = (back == null) ? null : (HookCallback) back.getCallback();
+        Backup back = mHooked.get(caller);
+        HookCallback callback = (back == null) ? null : (HookCallback) back.callback;
         if (callback == null) {
             return null;
         }
 
-        Member old = back.getInvoker();
+        Member old = back.invoker;
         if (old == null) {
             return null;
         }
@@ -208,7 +213,7 @@ public class HookManager {
             ((Constructor) old).setAccessible(true);
         }
 
-        CallbackParam param = new CallbackParam();
+        Param param = new Param();
         param.method = old;
         param.thisObject = thiz;
         param.args = args;
@@ -216,21 +221,11 @@ public class HookManager {
             callback.beforeHookedMethod(param);
         } catch (Throwable t) {
             t.printStackTrace();
-            param.setResult(null);
-            param.returnEarly = false;
         }
 
-        if (param.getThrowable() != null) {
-            return param.getResult();
-        }
-        if (param.returnEarly) {
-            return param.getResult();
-        }
-
-        if (callback.callOrigin()) {
+        if (param.callOrigin) {
             try {
-                Object res = ((Method) old).invoke(thiz, args);
-                param.setResult(res);
+                param.result = ((Method) old).invoke(thiz, args);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -239,8 +234,8 @@ public class HookManager {
         try {
             callback.afterHookedMethod(param);
         } catch (Throwable t) {
-            param.setResult(null);
+            t.printStackTrace();
         }
-        return param.getResult();
+        return param.result;
     }
 }
