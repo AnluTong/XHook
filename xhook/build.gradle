@@ -35,7 +35,6 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
     implementation 'com.android.support:appcompat-v7:28.0.0'
-    implementation 'com.jakewharton.android.repackaged:dalvik-dx:7.1.0_r7'
 }
 
 ext {
@@ -52,7 +51,7 @@ ext {
     siteUrl = 'https://github.com/AnluTong/XHook'
     gitUrl = 'https://github.com/AnluTong/XHook.git'
 
-    libraryVersion = '1.0.0'
+    libraryVersion = '1.0.1'
 
     developerId = 'tongandrew'
     developerName = 'Tong Andrew'
