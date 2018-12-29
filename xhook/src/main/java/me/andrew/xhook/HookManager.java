@@ -5,20 +5,17 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.android.dx.DexMaker;
-import com.android.dx.MethodId;
-import com.android.dx.TypeId;
-
-import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import javassist.ClassPool;
+import javassist.CtClass;
 
 /**
  * created by andrew.tong
@@ -32,11 +29,6 @@ public class HookManager {
     private volatile static HashMap<String, Backup> mHooked = new HashMap<>();
     private volatile static List<Backup> mNeedHooks = new ArrayList<>();
     private static Context mContext;
-    private static MethodId mHookCallback;
-
-    static {
-        mHookCallback = TypeId.get(HookManager.class).getMethod(TypeId.OBJECT, "invokeCallback", TypeId.STRING, TypeId.OBJECT, TypeId.get(Object[].class));
-    }
 
     public static Context getContext() {
         if (mContext == null) {
@@ -87,8 +79,8 @@ public class HookManager {
             if (context == null) return;
 
             Iterator<Backup> it = methods.iterator();
-            Map<String, TypeId> classes = new HashMap<>();
-            DexMaker dexMaker = new DexMaker();
+            Map<String, CtClass> classes = new HashMap<>();
+            ClassPool pool = ClassPool.getDefault(context);
             while (it.hasNext()) {
                 Backup m = it.next();
                 Member old = m.oldMethod;
@@ -98,40 +90,26 @@ public class HookManager {
                 }
 
                 //gen mHooked method in new dex
-                String oldClassName = old.getDeclaringClass().getName().replace(".", "_");
-                TypeId hookClassType = classes.get(oldClassName);
-                if (hookClassType == null) {
-                    hookClassType = TypeId.get("L" + oldClassName + ";");
-                    Class target = old.getDeclaringClass();
-                    if (Modifier.isFinal(target.getModifiers())) {
-                        dexMaker.declare(hookClassType, "", Modifier.PUBLIC, TypeId.OBJECT);
-                    } else {
-                        dexMaker.declare(hookClassType, "", Modifier.PUBLIC, TypeId.get(target));
-                    }
-                    MethodGenHelper.addDefaultConstructor(dexMaker, hookClassType);
-                    classes.put(oldClassName, hookClassType);
+                Class<?> oldClass = old.getDeclaringClass();
+                String hookName = oldClass.getName().replace(".", "_");
+                CtClass hookClass = classes.get(hookName);
+                if (hookClass == null) {
+                    hookClass = MethodGenHelper.makeNewClass(pool, old.getDeclaringClass(), hookName);
+                    classes.put(hookName, hookClass);
                 }
 
                 if (old instanceof Method) {
-                    MethodGenHelper.generateMethodFromMethod(dexMaker, hookClassType, (Method) old, mHookCallback);
-                    MethodGenHelper.generateInvokerFromMethod(dexMaker, hookClassType, (Method) old);
-                } else {
-                    MethodGenHelper.generateMethodFromConstructor(dexMaker, hookClassType, (Constructor) m.oldMethod, mHookCallback);
-                    MethodGenHelper.generateInvokerFromConstructor(dexMaker, hookClassType, (Constructor) m.oldMethod);
+                    MethodGenHelper.addHookMethod(pool, hookClass, (Method) old);
+                } else if (old instanceof Constructor) {
+                    MethodGenHelper.addHookConstructor(pool, hookClass, (Constructor) old);
                 }
             }
 
-            //gen new dex
-            File outputDir = new File(context.getDir("path", Context.MODE_PRIVATE).getPath());
-            if (outputDir.exists()) {
-                File[] fs = outputDir.listFiles();
-                for (File f : fs) {
-                    f.delete();
-                }
-            }
+            //get new dex class loader
+            ClassLoader loader = MethodGenHelper.getNewClassLoader(getContext(), classes.values());
+            if (loader == null) return;
 
-            //hook and set callback
-            ClassLoader loader = dexMaker.generateAndLoad(context.getClassLoader(), outputDir);
+            //actual hook
             for (Backup bak : methods) {
                 Member m = bak.oldMethod;
                 String name = m.getDeclaringClass().getName().replace(".", "_");
@@ -139,19 +117,16 @@ public class HookManager {
                 Constructor con = cls.getDeclaredConstructor();
                 con.newInstance(); //dex has gen default constructor
                 Member mem;
-                Method invoker;
+                Method backup;
                 if (m instanceof Method) {
                     mem = cls.getDeclaredMethod(m.getName(), ((Method) m).getParameterTypes());
-                    invoker = cls.getDeclaredMethod(m.getName() + MethodGenHelper.INVOKER_METHOD, ((Method) m).getParameterTypes());
+                    backup = cls.getDeclaredMethod(MethodGenHelper.getMethodBackup(m.getName()), ((Method) m).getParameterTypes());
                 } else {
                     mem = cls.getDeclaredConstructor(((Constructor) m).getParameterTypes());
-                    invoker = cls.getDeclaredMethod(MethodGenHelper.INVOKER_CONSTRUCT, ((Constructor) m).getParameterTypes());
+                    backup = cls.getDeclaredMethod(MethodGenHelper.getConstructorBackup(), ((Constructor) m).getParameterTypes());
                 }
-                if (mem == null || invoker == null) {
-                    continue;
-                }
-                XHook.hookMethod(bak.invoker(invoker).newMethod(mem));
-                mHooked.put(MethodGenHelper.getUID(m.toString()), bak);
+                XHook.hookMethod(bak.invoker(backup).newMethod(mem));
+                mHooked.put(m.toString(), bak);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -159,11 +134,7 @@ public class HookManager {
     }
 
     private static boolean isHooked(Member m) {
-        if (mHooked.get(MethodGenHelper.getUID(m.toString())) != null) {
-            return true;
-        } else {
-            return false;
-        }
+        return mHooked.containsKey(m.toString());
     }
 
     private static Class<?>[] transformParameterClasses(ClassLoader classLoader, Object[] params) {
@@ -193,7 +164,7 @@ public class HookManager {
      * @param args
      * @return
      */
-    public static Object invokeCallback(String caller, Object thiz, Object[] args) {
+    static Object invokeCallback(String caller, Object thiz, Object[] args) {
         Log.d(TAG, "hook method invoke!");
 
         Backup back = mHooked.get(caller);

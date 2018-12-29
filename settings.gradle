@@ -1,1 +1,1 @@
-include ':app', 'xhook'
+include ':app', ':javassist4android', 'xhook'
