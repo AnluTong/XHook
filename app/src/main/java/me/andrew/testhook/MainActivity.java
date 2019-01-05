@@ -12,10 +12,13 @@ import me.andrew.xhook.HookManager;
 
 public final class MainActivity extends AppCompatActivity {
 
+    private static Context mContext;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mContext = getApplicationContext();
 
         findViewById(R.id.btn).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -36,18 +39,18 @@ public final class MainActivity extends AppCompatActivity {
                         }
                     }
                 });
-//                HookManager.addHookConstructor(HookTest.class, new Object[]{Context.class, byte.class}, new HookCallback() {
-//                    @Override
-//                    protected void beforeHookedMethod(Param param) throws Throwable {
-//                        super.beforeHookedMethod(param);
-//                        param.args[1] = (byte) 1;
-//                    }
-//
-//                    @Override
-//                    protected void afterHookedMethod(Param param) throws Throwable {
-//                        super.afterHookedMethod(param);
-//                    }
-//                });
+                HookManager.addHookConstructor(HookTest.class, new Object[]{Context.class, byte.class}, new HookCallback() {
+                    @Override
+                    protected void beforeHookedMethod(Param param) throws Throwable {
+                        super.beforeHookedMethod(param);
+                        param.args[1] = (byte) 1;
+                    }
+
+                    @Override
+                    protected void afterHookedMethod(Param param) throws Throwable {
+                        super.afterHookedMethod(param);
+                    }
+                });
                 HookManager.startHook();
             }
         });
@@ -57,13 +60,13 @@ public final class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 showToast("toast before", 1);
 
-//                new HookTest(MainActivity.this, (byte) 0).showToast();
+                new HookTest(MainActivity.this, (byte) 0).showToast();
             }
         });
     }
 
-    private final int showToast(String msg, int a) {
-        Toast toast = Toast.makeText(this, msg, Toast.LENGTH_SHORT);
+    private static final int showToast(String msg, int a) {
+        Toast toast = Toast.makeText(mContext, msg, Toast.LENGTH_SHORT);
         toast.show();
         return 1;
     }

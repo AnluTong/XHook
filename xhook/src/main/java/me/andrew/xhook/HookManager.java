@@ -26,7 +26,7 @@ public class HookManager {
     private static final String TAG = HookManager.class.getSimpleName();
 
 
-    private volatile static HashMap<String, Backup> mHooked = new HashMap<>();
+    private volatile static Map<String, Backup> mHooked = new HashMap<>();
     private volatile static List<Backup> mNeedHooks = new ArrayList<>();
     private static Context mContext;
 
@@ -47,11 +47,16 @@ public class HookManager {
     }
 
     public static void startHook() {
-        startArtHook(mNeedHooks);
-        mNeedHooks.clear();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                startArtHook(mNeedHooks);
+                mNeedHooks.clear();
+            }
+        }).start();
     }
 
-    public static void addHookMethod(Class<?> clazz, String methodName, Object[] params, HookCallback callback) {
+    public synchronized static void addHookMethod(Class<?> clazz, String methodName, Object[] params, HookCallback callback) {
         try {
             if (callback == null || clazz == null || TextUtils.isEmpty(methodName)) return;
             if (params == null) params = new Object[0];
@@ -62,7 +67,7 @@ public class HookManager {
         }
     }
 
-    public static void addHookConstructor(Class<?> clazz, Object[] params, HookCallback callback) {
+    public synchronized static void addHookConstructor(Class<?> clazz, Object[] params, HookCallback callback) {
         try {
             if (callback == null || clazz == null) return;
             if (params == null) params = new Object[0];
@@ -73,7 +78,7 @@ public class HookManager {
         }
     }
 
-    private static void startArtHook(List<Backup> methods) {
+    private synchronized static void startArtHook(List<Backup> methods) {
         try {
             Context context = getContext();
             if (context == null) return;
@@ -165,7 +170,7 @@ public class HookManager {
      * @return
      */
     static Object invokeCallback(String caller, Object thiz, Object[] args) {
-        Log.d(TAG, "hook method invoke!");
+        Log.d(TAG, "hook method invoke! method is " + caller);
 
         Backup back = mHooked.get(caller);
         HookCallback callback = (back == null) ? null : (HookCallback) back.callback;

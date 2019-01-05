@@ -1,5 +1,7 @@
 package me.andrew.xhook;
 
+import android.support.annotation.Keep;
+
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 
@@ -8,6 +10,7 @@ import java.lang.reflect.Method;
  * on 18-12-11.
  */
 
+@Keep
 class XHook extends Object {
 
     static {

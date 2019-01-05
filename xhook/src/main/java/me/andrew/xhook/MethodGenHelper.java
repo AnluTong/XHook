@@ -1,8 +1,10 @@
 package me.andrew.xhook;
 
 import android.content.Context;
+import android.support.annotation.Keep;
 import android.support.annotation.NonNull;
 
+import com.android.dex.DexFormat;
 import com.android.dex.util.FileUtils;
 import com.android.dx.cf.direct.DirectClassFile;
 import com.android.dx.cf.direct.StdAttributeFactory;
@@ -49,6 +51,7 @@ import javassist.CtMethod;
  * }
  */
 
+@Keep
 class MethodGenHelper {
 
     private static Map<Class<?>, Class<?>> PRIMITIVE_TO_BOXING = new HashMap<>(9);
@@ -113,19 +116,21 @@ class MethodGenHelper {
                 if (i < pTypes.length - 1) typeString.append(",");
             }
             Class<?> returnType = ((Method) old).getReturnType();
+            boolean isStatic = Modifier.isStatic(old.getModifiers());
             CtMethod mBackup = new CtMethod(pool.get(returnType.getName()), old.getName() + BACKUP_METHOD, typeClass, newClass);
-            mBackup.setModifiers(Modifier.isStatic(old.getModifiers()) ? Modifier.STATIC | Modifier.PUBLIC
+            mBackup.setModifiers(isStatic ? Modifier.STATIC | Modifier.PUBLIC
                     : Modifier.isPrivate(old.getModifiers()) ? Modifier.PRIVATE : Modifier.PUBLIC);
             mBackup.setBody(null);
             newClass.addMethod(mBackup);
 
             CtMethod mRouter = new CtMethod(pool.get(returnType.getName()), old.getName(), typeClass, newClass);
-            mRouter.setModifiers(Modifier.isStatic(old.getModifiers()) ? Modifier.STATIC | Modifier.PUBLIC
+            mRouter.setModifiers(isStatic ? Modifier.STATIC | Modifier.PUBLIC
                     : Modifier.isPrivate(old.getModifiers()) ? Modifier.PRIVATE : Modifier.PUBLIC);
 
             StringBuilder body = new StringBuilder();
             body.append("{java.lang.Object invokeCallback=").append(MethodGenHelper.class.getName());
-            body.append(".invokeCallback(\"").append(old.toString()).append("\",this,new java.lang.Object[");
+            body.append(".invokeCallback(\"").append(old.toString()).append("\",");
+            body.append(isStatic ? "null" : "this").append(",new java.lang.Object[");
             body.append(pTypes.length == 0 ? "0]);" : "]{" + typeString + "});");
             if (void.class.equals(returnType)) {
                 body.append("}");
@@ -217,7 +222,7 @@ class MethodGenHelper {
 
         final CfOptions cfOptions = new CfOptions();
         final DexOptions dxOption = new DexOptions();
-        dxOption.targetApiLevel = 13;
+        dxOption.targetApiLevel = DexFormat.API_NO_EXTENDED_OPCODES;
         final DexFile outputDex = new DexFile(dxOption);
         for (File f : fs) {
             try {
@@ -237,16 +242,16 @@ class MethodGenHelper {
                 JarOutputStream jarOut = new JarOutputStream(new FileOutputStream(result))) {
             byte[] dex = outputDex.toDex(null, false);
             result.createNewFile();
-            JarEntry entry = new JarEntry("classes.dex");
-            entry.setSize((long) dex.length);
+            JarEntry entry = new JarEntry(DexFormat.DEX_IN_JAR_NAME);
+            entry.setSize(dex.length);
             jarOut.putNextEntry(entry);
             jarOut.write(dex);
             jarOut.closeEntry();
-            return generateClassLoader(result, outputDir, context.getClassLoader());
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
+        return generateClassLoader(result, outputDir, context.getClassLoader());
     }
 
     public static String getMethodBackup(String old) {
@@ -264,8 +269,10 @@ class MethodGenHelper {
 
     private static ClassLoader generateClassLoader(File result, File dexCache, ClassLoader parent) {
         try {
-            return (ClassLoader) Class.forName("dalvik.system.DexClassLoader").getConstructor(String.class, String.class, String.class, ClassLoader.class)
-                    .newInstance(result.getPath(), dexCache.getAbsolutePath(), null, parent);
+            return (ClassLoader) Class.forName("dalvik.system.DexClassLoader")
+                    .getConstructor(String.class, String.class, String.class, ClassLoader.class)
+                    .newInstance(result.getPath(), dexCache.getAbsolutePath(), null,
+                            parent);
         } catch (ClassNotFoundException var5) {
             throw new UnsupportedOperationException("load() requires a Dalvik VM", var5);
         } catch (InvocationTargetException var6) {
